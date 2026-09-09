@@ -16,6 +16,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@SuppressWarnings("null")
 class HelloWorldServiceApplicationTests {
 
     @Autowired

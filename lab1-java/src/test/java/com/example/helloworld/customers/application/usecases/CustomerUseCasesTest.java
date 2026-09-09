@@ -11,6 +11,7 @@ import com.example.helloworld.customers.infrastructure.repositories.InMemoryCust
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("null")
 class CustomerUseCasesTest {
 
     @Test

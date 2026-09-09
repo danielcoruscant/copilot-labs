@@ -1,7 +1,6 @@
 package com.example.helloworld.customers.domain.entities;
 
 import java.util.UUID;
-import com.example.helloworld.customers.domain.exceptions.InvalidCustomerException;
 
 public record Customer(UUID id, CustomerName name, CustomerEmail email) {
 
