@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.example.helloworld.customers.domain.entities.Customer;
 import com.example.helloworld.customers.domain.exceptions.CustomerNotFoundException;
+import com.example.helloworld.customers.domain.exceptions.DuplicateCustomerException;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
@@ -34,5 +35,13 @@ class InMemoryCustomerRepositoryTest {
                 .isInstanceOf(CustomerNotFoundException.class);
         assertThatThrownBy(() -> repository.deleteById(customerId))
                 .isInstanceOf(CustomerNotFoundException.class);
+    }
+
+    @Test
+    void rejectsDifferentCustomerWithExistingEmail() {
+        repository.save(Customer.create("Ada", "ada@example.com"));
+
+        assertThatThrownBy(() -> repository.save(Customer.create("Grace", "ADA@EXAMPLE.COM")))
+                .isInstanceOf(DuplicateCustomerException.class);
     }
 }

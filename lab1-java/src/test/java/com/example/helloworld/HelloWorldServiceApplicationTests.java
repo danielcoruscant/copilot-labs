@@ -35,8 +35,9 @@ class HelloWorldServiceApplicationTests {
     @Test
     void supportsCustomerCrudLifecycle() throws Exception {
         String response = mockMvc.perform(post("/customers")
+                        .header("Idempotency-Key", "lifecycle-http")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Ada Lovelace\",\"email\":\"ada@example.com\"}"))
+                                .content("{\"name\":\"Ada Lovelace\",\"email\":\"ada.lifecycle@example.com\"}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value("Ada Lovelace"))
                 .andReturn().getResponse().getContentAsString();
@@ -51,7 +52,7 @@ class HelloWorldServiceApplicationTests {
 
         mockMvc.perform(put("/customers/{id}", customerId)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Ada Byron\",\"email\":\"ada.byron@example.com\"}"))
+                        .content("{\"name\":\"Ada Byron\",\"email\":\"ada.byron@example.com\",\"version\":0}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Ada Byron"));
         mockMvc.perform(delete("/customers/{id}", customerId))
@@ -64,8 +65,46 @@ class HelloWorldServiceApplicationTests {
     }
 
     @Test
+    void makesPostIdempotentAndRejectsPutEmailCollision() throws Exception {
+        String firstResponse = mockMvc.perform(post("/customers")
+                        .header("Idempotency-Key", "grace-http")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Grace Hopper\",\"email\":\"grace@example.com\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String customerId = com.jayway.jsonpath.JsonPath.read(firstResponse, "$.id");
+
+        mockMvc.perform(post("/customers")
+                        .header("Idempotency-Key", "grace-http")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Grace Hopper\",\"email\":\"grace@example.com\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(customerId));
+
+        String otherResponse = mockMvc.perform(post("/customers")
+                        .header("Idempotency-Key", "alan-http")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Alan Turing\",\"email\":\"alan@example.com\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String otherId = com.jayway.jsonpath.JsonPath.read(otherResponse, "$.id");
+
+        mockMvc.perform(put("/customers/{id}", otherId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Alan Turing\",\"email\":\"grace@example.com\",\"version\":0}"))
+                .andExpect(status().isConflict());
+
+        mockMvc.perform(put("/customers/{id}", customerId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Grace Hopper\",\"email\":\"grace@example.com\",\"version\":0}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(customerId));
+    }
+
+    @Test
     void returnsValidationAndNotFoundErrors() throws Exception {
         mockMvc.perform(post("/customers")
+                        .header("Idempotency-Key", "invalid-http")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"\",\"email\":\"x\"}"))
                 .andExpect(status().isUnprocessableEntity());
@@ -75,17 +114,18 @@ class HelloWorldServiceApplicationTests {
                 .andExpect(status().isUnprocessableEntity());
         mockMvc.perform(put("/customers/00000000-0000-0000-0000-000000000000")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Ada\",\"email\":\"ada@example.com\"}"))
+                        .content("{\"name\":\"Ada\",\"email\":\"ada@example.com\",\"version\":0}"))
                 .andExpect(status().isNotFound());
 
         String created = mockMvc.perform(post("/customers")
+                        .header("Idempotency-Key", "validation-http")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"Ada\",\"email\":\"ada@example.com\"}"))
                 .andReturn().getResponse().getContentAsString();
         String customerId = com.jayway.jsonpath.JsonPath.read(created, "$.id");
         mockMvc.perform(put("/customers/{id}", customerId)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Ada\",\"email\":\"invalid\"}"))
+                        .content("{\"name\":\"Ada\",\"email\":\"invalid\",\"version\":0}"))
                 .andExpect(status().isUnprocessableEntity());
     }
 }

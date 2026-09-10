@@ -1,7 +1,10 @@
 package com.example.helloworld.customers.interfaces.http.handlers;
 
 import com.example.helloworld.customers.domain.exceptions.CustomerNotFoundException;
+import com.example.helloworld.customers.domain.exceptions.DuplicateCustomerException;
 import com.example.helloworld.customers.domain.exceptions.InvalidCustomerException;
+import com.example.helloworld.customers.domain.exceptions.IdempotencyKeyConflictException;
+import com.example.helloworld.customers.domain.exceptions.StaleCustomerVersionException;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +20,18 @@ public class ApiExceptionHandler {
     public ResponseEntity<Map<String, String>> handleNotFound(CustomerNotFoundException exception) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(Map.of("detail", "Customer not found"));
+    }
+
+    @ExceptionHandler(DuplicateCustomerException.class)
+    public ResponseEntity<Map<String, String>> handleDuplicate(DuplicateCustomerException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("detail", exception.getMessage()));
+    }
+
+    @ExceptionHandler({IdempotencyKeyConflictException.class, StaleCustomerVersionException.class})
+    public ResponseEntity<Map<String, String>> handleConflict(RuntimeException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("detail", exception.getMessage()));
     }
 
     @ExceptionHandler({InvalidCustomerException.class, MethodArgumentNotValidException.class})
